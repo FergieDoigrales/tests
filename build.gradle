@@ -7,6 +7,13 @@ plugins {
 import javax.xml.parsers.DocumentBuilderFactory
 import org.apache.tools.ant.taskdefs.Zip
 import java.security.MessageDigest
+import java.nio.file.Files
+import java.nio.charset.StandardCharsets
+import java.util.Base64
+
+configurations {
+    antOptional
+}
 
 repositories {
     mavenCentral()
@@ -104,48 +111,143 @@ tasks.register('xml') {
     }
 }
 
-tasks.register('native2ascii') {
+//tasks.register('native2ascii') {
+//    doLast {
+//        fileTree(dir: '.', include: '**/*.properties').each { file ->
+//            def outputFile = file("${buildDir}/native2ascii/${file.name}")
+//            outputFile.parentFile.mkdirs()
+//            exec {
+//                commandLine 'native2ascii', '-encoding', 'UTF8', file.path, outputFile.path
+//            }
+//        }
+//    }
+//}
+
+//tasks.register('history_task') {
+//    doLast {
+//        def result = exec {
+//            commandLine 'gradle', 'compile'
+//            ignoreExitValue true
+//        }
+//
+//        while (result.exitValue != 0) {
+//            exec {
+//                commandLine 'git', 'checkout', 'HEAD~1'
+//            }
+//            result = exec {
+//                commandLine 'gradle', 'compile'
+//                ignoreExitValue true
+//            }
+//        }
+//
+//        if (result.exitValue != 0) {
+//            exec {
+//                commandLine 'git', 'diff', 'HEAD~1', '>', 'diff.txt'
+//            }
+//        }
+//    }
+//}
+
+tasks.register ('history') {
     doLast {
-        fileTree(dir: '.', include: '**/*.properties').each { file ->
-            def outputFile = file("${buildDir}/native2ascii/${file.name}")
-            outputFile.parentFile.mkdirs()
+        def success = false
+        def diffResult = ""
+        def outputStream
+        def count =0
+        def commit = 'HEAD'
+        def prevCommit = commit + '^'
+        try {
             exec {
-                commandLine 'native2ascii', '-encoding', 'UTF8', file.path, outputFile.path
+                workingDir projectDir
+                commandLine 'cmd', '/c', 'gradlew', 'compileJava'
             }
+            success = true
+        } catch (Exception e) {
+            println "Compile error: ${e.message}"
+            success = false
+        }
+        println "Compile result: $success"
+        if (!success) {
+            def diffFile = file("$buildDir/diff.txt")
+
+            def successfullyLoaded = false
+
+            while (!successfullyLoaded) {
+
+                if(count ==0){
+                    outputStream = new ByteArrayOutputStream()
+                    exec {
+
+                        commandLine 'git', 'diff'
+                        workingDir projectDir
+                        standardOutput = outputStream
+                    }
+                    diffResult = outputStream.toString()
+                    count = 1
+                    exec {
+                        commandLine 'git', 'reset','--hard',commit
+                        workingDir projectDir
+                        ignoreExitValue true
+                    }
+                }
+                else{
+                    exec {
+
+                        commandLine 'git', 'diff', prevCommit, commit
+                        workingDir projectDir
+                        standardOutput = outputStream
+                    }
+                    diffResult = outputStream.toString()
+                    exec {
+                        commandLine 'git', 'reset','--hard', prevCommit
+                        workingDir projectDir
+                        ignoreExitValue true
+                    }
+
+                }
+
+                try {
+                    exec {
+                        workingDir projectDir
+                        commandLine 'cmd', '/c', 'gradlew', 'compileJava'
+                    }
+                    success = true
+                } catch (Exception e) {
+                    println "Compile error: ${e.message}"
+                    success = false
+                }
+                if (!success) {
+                    println "Failed to compile project, retrying..."
+                    commit = prevCommit
+                    prevCommit += '^'
+
+
+
+                }
+
+
+                else {
+                    println "Project compiled successfully, diff in ${diffFile}"
+                    successfullyLoaded = true
+                    def outputFile = new File("diff.txt")
+                    outputFile.write(diffResult)
+                }
+
+            }
+
+
+        }
+        else{
+            println "Project compiled successfully, no need to load previous revision"
+
         }
     }
 }
 
-tasks.register('history') {
+tasks.register('doc_task') {
     doLast {
-        def result = exec {
-            commandLine 'gradle', 'compile'
-            ignoreExitValue true
-        }
-
-        while (result.exitValue != 0) {
-            exec {
-                commandLine 'git', 'checkout', 'HEAD~1'
-            }
-            result = exec {
-                commandLine 'gradle', 'compile'
-                ignoreExitValue true
-            }
-        }
-
-        if (result.exitValue != 0) {
-            exec {
-                commandLine 'git', 'diff', 'HEAD~1', '>', 'diff.txt'
-            }
-        }
-    }
-}
-
-tasks.register('doc') {
-    doLast {
-        // Создание MANIFEST.MF с MD5 и SHA-1 хешами файлов проекта
         def manifestContent = new StringBuilder()
-        fileTree(dir: 'src/main/java').visit { FileVisitDetails details ->
+        fileTree(dir: '${projectDir}/src/main/java').visit { FileVisitDetails details ->
             if (!details.directory) {
                 def md5 = MessageDigest.getInstance('MD5')
                 def sha1 = MessageDigest.getInstance('SHA-1')
@@ -167,25 +269,22 @@ tasks.register('doc') {
         }
         file('src/main/resources/META-INF/MANIFEST.MF').text = manifestContent.toString()
 
-        // Генерация Javadoc для всех классов проекта
         def javadocDir = file("${buildDir}/docs/javadoc")
         javadocDir.mkdirs()
         exec {
-            commandLine 'javadoc', '-d', javadocDir, '-sourcepath', 'src/main/java', '-subpackages', '.'
+            commandLine 'javadoc', '-d', javadocDir, '-sourcepath', '${projectDir}/src/main/java', '-subpackages', '.'
         }
     }
 }
 
 tasks.register('team') {
     doLast {
-        // Получение двух предыдущих ревизий из git-репозитория
         def revisions = ['HEAD~1', 'HEAD~2']
         revisions.each { revision ->
             exec {
                 commandLine 'git', 'checkout', revision
             }
 
-            // Сборка каждой ревизии с использованием задачи `build`
             exec {
                 commandLine 'gradle', 'build'
             }
@@ -199,5 +298,92 @@ tasks.register('team') {
             from 'build/libs'
             archiveFileName.set('archive.zip')
             destinationDir = file('build') }
+    }
+}
+
+tasks.register('javadoc_task', Javadoc) {
+    group = 'documentation'
+    description = 'Generate javadoc'
+    dependsOn 'compile'
+
+    source = sourceSets.main.allJava
+    destinationDir = file("${buildDir}/javadoc")
+    classpath = sourceSets.main.compileClasspath
+
+    options {
+        encoding = 'UTF-8'
+        charSet = 'UTF-8'
+        links("https://docs.oracle.com/javase/8/docs/api/")
+        addStringOption('Xdoclint:none', '-quiet')
+    }
+}
+
+tasks.register('md5sha1') {
+    group = 'build'
+    description = 'Calculating MD5 and SHA-1 checksums'
+    dependsOn 'jar'
+    doLast {
+        def jarFile = file("build/libs/${project.name}.jar")
+        if (!jarFile.exists()) {
+            throw new FileNotFoundException("JAR file not found: ${jarFile.absolutePath}")
+        }
+
+        def md5 = MessageDigest.getInstance("MD5")
+        def sha1 = MessageDigest.getInstance("SHA-1")
+
+        jarFile.withInputStream { input ->
+            byte[] buffer = new byte[8192]
+            int bytesRead
+            while ((bytesRead = input.read(buffer)) != -1) {
+                md5.update(buffer, 0, bytesRead)
+                sha1.update(buffer, 0, bytesRead)
+            }
+        }
+
+        def md5Hex = md5.digest().encodeHex().toString()
+        def sha1Hex = sha1.digest().encodeHex().toString()
+
+        def manifestFile = file("${buildDir}/tmp/jar/MANIFEST.MF")
+        manifestFile.parentFile.mkdirs()
+        manifestFile.withWriterAppend { writer ->
+            writer.println("MD5-Digest: ${md5Hex}")
+            writer.println("SHA1-Digest: ${sha1Hex}")
+        }
+    }
+}
+
+tasks.register('doc') {
+    group = 'documentation'
+    description = 'Creating documentation, including Javadoc, and adding checksums to the manifest'
+    dependsOn 'javadoc_task', 'md5sha1'
+}
+
+
+tasks.register('native2ascii') {
+    group = 'internationalization'
+    description = 'Convert text files to ASCII encoding using native2ascii'
+
+    doLast {
+        def sourceDir = project.file('src/main/resources')
+        def targetDir = project.file('build/native2ascii')
+
+        targetDir.mkdirs()
+
+        sourceDir.eachDir { dir ->
+            def targetSubDir = new File(targetDir, dir.name)
+            targetSubDir.mkdirs()
+
+            dir.eachFile { file ->
+                def targetFile = new File(targetSubDir, file.name)
+
+                def content = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8).join('\n')
+
+                def asciiContent = Base64.getEncoder().encodeToString(content.getBytes(StandardCharsets.UTF_8))
+
+                Files.write(targetFile.toPath(), asciiContent.getBytes(StandardCharsets.UTF_8))
+            }
+        }
+
+        println "Complete: ${targetDir}"
     }
 }
