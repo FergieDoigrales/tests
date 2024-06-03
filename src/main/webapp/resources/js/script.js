@@ -1,8 +1,8 @@
-let r;
 let svg = document.getElementById("svg");
 window.redrawDots = redrawPoints
 window.handleRRRChange = handleRRChange
 function drawPoint(x, y, r, result) {
+    result = checkTriangle(x, y, r) || checkCircle(x, y, r) || checkSquare(x, y, r)
     let circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     circle.setAttribute("cx", x * (100) / r + 150);
     circle.setAttribute("cy", -y * (100) / r + 150);
@@ -14,6 +14,7 @@ function drawPoint(x, y, r, result) {
 
     rLabels.forEach((label) => {
         label.textContent = label.textContent.replace(/(-?)R(\/2)?/g, (_, sign, isHalf) => {
+            console.log(r)
             if (isHalf === "/2") {
                 return sign + r + "/2";
             } else {
@@ -38,7 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let point = svg.createSVGPoint();
         point.x = event.clientX;
         point.y = event.clientY;
-        let r = PF('RDropDown').getSelectedValue();
+        let r = PF('RDropDown').getValue();
         const svgPoint = point.matrixTransform(svg.getScreenCTM().inverse());
         let planeCoords = transformSvgToPlane(svgPoint.x, svgPoint.y, r);
         response = await addPoint(
@@ -76,10 +77,11 @@ function redrawPoints() {
 
 }
 function handleRRChange() {
-    let r = PF('RDropDown').getSelectedValue();
+    let r = PF('RDropDown').getValue();
     let rLabels = document.querySelectorAll(".rLabel");
     rLabels.forEach((label) => {
-        label.textContent = label.textContent.replace(/(-?).(\/2)?/g, (_, sign, isHalf) => {
+        label.textContent = label.textContent.replace(/(-?)[\d.]+(\/2)?/g, (_, sign, isHalf) => {
+            console.log(r)
             if (isHalf === "/2") {
                 return sign + r + "/2";
             } else {
@@ -98,7 +100,8 @@ function handleRRChange() {
         for (let item of table.rows) {
             const x = parseFloat(item.children[0].innerText.trim().replace(",", "."));
             const y = parseFloat(item.children[1].innerText.trim().replace(",", "."));
-            const r = parseFloat(PF('RDropDown').getSelectedValue());
+            const r = parseFloat(PF('RDropDown').getValue
+());
             const result = item.children[3].innerText.trim() === "Hit";
             console.log(x,y,r,result)
             if (isNaN(x) || isNaN(y) || isNaN(r)) continue;
@@ -107,4 +110,16 @@ function handleRRChange() {
     }
 }
 
+
+function checkTriangle(x, y, r) {
+    return (x >= 0 && y <= 0) && (x <= r) && (y <= r/2) && (x - 2*y <= r);
+}
+
+function checkCircle(x, y, r) {
+    return (x <= 0 && y <= 0) && (x*x + y*y <= r*r / 4);
+}
+
+function checkSquare(x, y, r) {
+    return (x <= 0 && y >= 0) && (x >= -r && y <= r / 2);
+}
 

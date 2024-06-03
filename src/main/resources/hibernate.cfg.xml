@@ -8,8 +8,8 @@
         <!-- Connection settings -->
         <property name="hibernate.connection.driver_class">org.postgresql.Driver</property>
         <property name="hibernate.connection.url">jdbc:postgresql://localhost:5432/studs</property>
-        <property name="hibernate.connection.username">s367243</property>
-        <property name="hibernate.connection.password">10s5iDYWGyVq2DuB</property>
+        <property name="hibernate.connection.username">s367900</property>
+        <property name="hibernate.connection.password">NHuAaqTUhW4OskIS</property>
         <property name="hibernate.current_session_context_class">thread</property>
 
         <!-- SQL dialect -->

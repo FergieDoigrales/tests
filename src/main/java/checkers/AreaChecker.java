@@ -23,14 +23,14 @@ public class AreaChecker implements Serializable {
     }
 
     private boolean pointIsInRect(double x, double y, double r) {
-        return (x <= 0 && y >= 0) && (x >= -r && y <= r / 2);
+        return (x >= 0 && y >= 0) && (x <= r && y <= r / 2);
     }
 
     private boolean pointIsInSector(double x, double y, double r) {
-        return (x <= 0 && y <= 0) && (x*x + y*y <= r*r / 4);
+        return (x >= 0 && y <= 0) && (x * x + y * y <= r * r / 4);
     }
 
     private boolean pointIsInTriangle(double x, double y, double r) {
-        return (x >= 0 && y <= 0) && (x <= r) && (y <= r/2) && (x - 2*y <= r);
+        return (x <= 0 && y <= 0) && (x <= r) && (y <= r / 2) && (-y-x <= r/2);
     }
 }

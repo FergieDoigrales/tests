@@ -4,6 +4,9 @@ plugins {
     id 'org.flywaydb.flyway' version '9.8.1'
 }
 
+import javax.xml.parsers.DocumentBuilderFactory
+import org.apache.tools.ant.taskdefs.Zip
+import java.security.MessageDigest
 
 repositories {
     mavenCentral()
@@ -13,9 +16,10 @@ ext {
     junitVersion = '5.9.2'
 }
 
-sourceCompatibility = '11'
-targetCompatibility = '11'
-
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
@@ -27,11 +31,15 @@ dependencies {
     compileOnly('jakarta.ejb:jakarta.ejb-api:4.0.0')
     compileOnly('jakarta.faces:jakarta.faces-api:4.0.1')
     compileOnly('jakarta.servlet:jakarta.servlet-api:5.0.0')
+    implementation 'jakarta.platform:jakarta.jakartaee-web-api:10.0.0'
+    implementation 'org.glassfish:jakarta.faces:4.0.1'
     implementation 'org.projectlombok:lombok:1.18.28'
-    implementation('org.hibernate:hibernate-core:6.0.2.Final')
-    implementation('org.postgresql:postgresql:42.2.27')
+    implementation platform('org.hibernate.orm:hibernate-platform:6.3.1.Final')
+    implementation 'org.hibernate.orm:hibernate-core'
+    implementation 'jakarta.transaction:jakarta.transaction-api'
+    implementation 'org.postgresql:postgresql:42.6.0'
     implementation('org.glassfish.jaxb:jaxb-runtime:3.0.2')
-    implementation('org.primefaces:primefaces:13.0.0:jakarta')
+    implementation('org.primefaces:primefaces:13.0.3:jakarta')
     implementation('com.google.code.gson:gson:2.10.1')
 
 
@@ -45,8 +53,151 @@ test {
 flyway {
     locations = ["filesystem:./sql/migrations"]
     url = "jdbc:postgresql://helios.cs.ifmo.ru:5432/studs"
-    user = "s367243"
-    password = "10s5iDYWGyVq2DuB"
+    user = "s367900"
+    password = "NHuAaqTUhW4OskIS"
     schemas = ['public']
 }
 flywayMigrate.dependsOn(classes)
+
+tasks.register('compile') {
+    group = 'build'
+    description = 'Compilation of the project source code'
+    dependsOn 'compileJava'
+    doLast {
+        tasks.withType(JavaCompile).configureEach {
+            options.compilerArgs << "-Xlint:deprecation"
+        }
+    }
+}
+
+tasks.register('build_task') {
+    group = 'build'
+    description = 'Building the project and packing it into an executable Jar archive'
+    dependsOn 'compile'
+    finalizedBy 'jar'
+}
+
+tasks.register('clean_task') {
+    group = 'build'
+    description = 'Deleting all temporary files and compiled classes'
+    dependsOn 'clean'
+    doLast {
+        delete fileTree(dir: 'build', exclude: 'libs/')
+    }
+}
+
+test {
+    useJUnitPlatform()
+    dependsOn 'build'
+}
+
+tasks.register('xml') {
+    doLast {
+        fileTree(dir: '.', include: '**/*.xml').each { file ->
+            try {
+                DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file)
+                println "${file} is valid."
+            } catch (Exception e) {
+                println "${file} is NOT valid. Reason: ${e.message}"
+            }
+        }
+    }
+}
+
+tasks.register('native2ascii') {
+    doLast {
+        fileTree(dir: '.', include: '**/*.properties').each { file ->
+            def outputFile = file("${buildDir}/native2ascii/${file.name}")
+            outputFile.parentFile.mkdirs()
+            exec {
+                commandLine 'native2ascii', '-encoding', 'UTF8', file.path, outputFile.path
+            }
+        }
+    }
+}
+
+tasks.register('history') {
+    doLast {
+        def result = exec {
+            commandLine 'gradle', 'compile'
+            ignoreExitValue true
+        }
+
+        while (result.exitValue != 0) {
+            exec {
+                commandLine 'git', 'checkout', 'HEAD~1'
+            }
+            result = exec {
+                commandLine 'gradle', 'compile'
+                ignoreExitValue true
+            }
+        }
+
+        if (result.exitValue != 0) {
+            exec {
+                commandLine 'git', 'diff', 'HEAD~1', '>', 'diff.txt'
+            }
+        }
+    }
+}
+
+tasks.register('doc') {
+    doLast {
+        // Создание MANIFEST.MF с MD5 и SHA-1 хешами файлов проекта
+        def manifestContent = new StringBuilder()
+        fileTree(dir: 'src/main/java').visit { FileVisitDetails details ->
+            if (!details.directory) {
+                def md5 = MessageDigest.getInstance('MD5')
+                def sha1 = MessageDigest.getInstance('SHA-1')
+                details.file.withInputStream { is ->
+                    byte[] buffer = new byte[1024]
+                    int read = 0
+                    while ((read = is.read(buffer)) != -1) {
+                        md5.update(buffer, 0, read)
+                        sha1.update(buffer, 0, read)
+                    }
+                }
+                manifestContent.append(details.relativePath)
+                        .append(' MD5: ')
+                        .append(md5.digest().collect { String.format('%02x', it) }.join())
+                        .append(' SHA-1: ')
+                        .append(sha1.digest().collect { String.format('%02x', it) }.join())
+                        .append('\n')
+            }
+        }
+        file('src/main/resources/META-INF/MANIFEST.MF').text = manifestContent.toString()
+
+        // Генерация Javadoc для всех классов проекта
+        def javadocDir = file("${buildDir}/docs/javadoc")
+        javadocDir.mkdirs()
+        exec {
+            commandLine 'javadoc', '-d', javadocDir, '-sourcepath', 'src/main/java', '-subpackages', '.'
+        }
+    }
+}
+
+tasks.register('team') {
+    doLast {
+        // Получение двух предыдущих ревизий из git-репозитория
+        def revisions = ['HEAD~1', 'HEAD~2']
+        revisions.each { revision ->
+            exec {
+                commandLine 'git', 'checkout', revision
+            }
+
+            // Сборка каждой ревизии с использованием задачи `build`
+            exec {
+                commandLine 'gradle', 'build'
+            }
+        }
+
+        exec {
+            commandLine 'git', 'checkout', 'master'
+        }
+
+        tasks.register('zipJars', org.gradle.api.tasks.bundling.Zip) {
+            from 'build/libs'
+            archiveFileName.set('archive.zip')
+            destinationDir = file('build') }
+    }
+}
