@@ -425,4 +425,3 @@ tasks.register('alt', Jar) {
     archiveFileName.set("Lab3_ALT.jar")
     from altDir
 }
-
