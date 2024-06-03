@@ -1,6 +1,8 @@
-checkers/AreaChecker.java MD5: 7341b1066d9960135e608344cb8fc43a SHA-1: c1e51843dc503ebf6987ba22c942af4a5ee78b40
-checkers/AreaCheckerQualifier.java MD5: 9398d8ed971d5726ae9be55cd3a0fca7 SHA-1: 89b63444bfee929deebde7f4073243c1788a0480
-db/HibernateManager.java MD5: f9cb1f6ffded552c34131ecbba7c82b3 SHA-1: 71c86605317461844eb5cfa0451de9855687d904
-db/PointDataModel.java MD5: ea43ee3ac48982028134b655b05d4db7 SHA-1: b9e50a426fb008c44b4d42ef388503a3126f20e6
-db/PointRepository.java MD5: ae6516aac1f8c6b02c02f166e9a5466c SHA-1: 4186d3a18db9f8f2a2c3cdb75089c7ffd3210b89
-models/Point.java MD5: 4c5922dade612ee3793abff7eb960786 SHA-1: e06a3b1d947f4fce7e449fcfb690c5a9c4bd21ee
+MD5-Digest: aa82f04b8a346851297f2bc74a0e2058
+SHA1-Digest: 6f8590a380e83613fabdc0532fa48030656ba36f
+MD5-Digest: 501e8b0150db54b9e84a6b0f5c6c351e
+SHA1-Digest: e2c3a883cb312e8da7c92fb0c0c34deadc3e7686
+MD5-Digest: afebffc6cb972291399ffbf65f55a026
+SHA1-Digest: 87f10fa3a97a0d6aca26db8dec309a232e7eb879
+MD5-Digest: e28e46679ec7252c1875a0e29d7f477c
+SHA1-Digest: 0673261bcd5811c42f67aa5359cc110697c7734e

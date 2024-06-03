@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'war'
     id 'org.flywaydb.flyway' version '9.8.1'
+
 }
 
 import javax.xml.parsers.DocumentBuilderFactory
@@ -303,24 +304,23 @@ tasks.register('team') {
 
 tasks.register('javadoc_task', Javadoc) {
     group = 'documentation'
-    description = 'Generate javadoc'
     dependsOn 'compile'
 
     source = sourceSets.main.allJava
-    destinationDir = file("${buildDir}/javadoc")
+    destinationDir = file("$buildDir/docs/javadoc")
     classpath = sourceSets.main.compileClasspath
 
     options {
         encoding = 'UTF-8'
         charSet = 'UTF-8'
-        links("https://docs.oracle.com/javase/8/docs/api/")
+        links("https://docs.oracle.com/en/java/javase/22/docs/api/")
         addStringOption('Xdoclint:none', '-quiet')
     }
 }
 
 tasks.register('md5sha1') {
     group = 'build'
-    description = 'Calculating MD5 and SHA-1 checksums'
+    description = 'MD5 и SHA-1 хеш-суммы'
     dependsOn 'jar'
     doLast {
         def jarFile = file("build/libs/${project.name}.jar")
@@ -343,7 +343,7 @@ tasks.register('md5sha1') {
         def md5Hex = md5.digest().encodeHex().toString()
         def sha1Hex = sha1.digest().encodeHex().toString()
 
-        def manifestFile = file("${buildDir}/tmp/jar/MANIFEST.MF")
+        def manifestFile = file("src/main/resources/META-INF/MANIFEST.MF")
         manifestFile.parentFile.mkdirs()
         manifestFile.withWriterAppend { writer ->
             writer.println("MD5-Digest: ${md5Hex}")
@@ -352,16 +352,21 @@ tasks.register('md5sha1') {
     }
 }
 
+tasks.named('jar', Jar) {
+    dependsOn 'javadoc_task'
+    from("${buildDir}/javadoc") {
+        into 'javadoc'
+    }
+}
+
 tasks.register('doc') {
     group = 'documentation'
-    description = 'Creating documentation, including Javadoc, and adding checksums to the manifest'
     dependsOn 'javadoc_task', 'md5sha1'
 }
 
 
 tasks.register('native2ascii') {
     group = 'internationalization'
-    description = 'Convert text files to ASCII encoding using native2ascii'
 
     doLast {
         def sourceDir = project.file('src/main/resources')
@@ -387,3 +392,37 @@ tasks.register('native2ascii') {
         println "Complete: ${targetDir}"
     }
 }
+
+tasks.register('alt', Jar) {
+    group = 'opi'
+    description = 'Creates an alternative version of the program.'
+
+    def baseDir = file('src/main/java')
+    def altDir = file("$buildDir/altJava")
+
+    copy {
+        from baseDir
+        into altDir
+    }
+
+    fileTree(altDir).matching {
+        include '**/AreaChecker.java'
+    }.each { file ->
+        def newFileName = file.path.replace(
+                'AreaChecker.java', 'AreaCheckerAlt.java')
+        file.renameTo(new File(newFileName))
+    }
+
+    def messagesFile = file(
+            "$altDir/checkers/AreaChecker.java")
+    messagesFile.delete()
+
+    fileTree(altDir).each { file ->
+        file.text = file.text.replaceAll(
+                ' hit ', ' althit ')
+    }
+
+    archiveFileName.set("Lab3_ALT.jar")
+    from altDir
+}
+

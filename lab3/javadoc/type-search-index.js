@@ -1,0 +1,1 @@
+typeSearchIndex = [{"l":"All Classes and Interfaces","u":"allclasses-index.html"},{"p":"checkers","l":"AreaChecker"},{"p":"checkers","l":"AreaCheckerQualifier"},{"p":"db","l":"HibernateManager"},{"p":"models","l":"Point"},{"p":"db","l":"PointDataModel"},{"p":"db","l":"PointRepository"}];updateSearchResults();
