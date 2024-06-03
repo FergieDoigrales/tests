@@ -419,7 +419,7 @@ tasks.register('alt', Jar) {
 
     fileTree(altDir).each { file ->
         file.text = file.text.replaceAll(
-                ' hit ', ' althit ')
+                ' hit ', ' Althit ')
     }
 
     archiveFileName.set("Lab3_ALT.jar")
