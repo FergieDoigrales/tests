@@ -126,7 +126,7 @@ tasks.register ('history') {
             }
             success = true
         } catch (Exception e) {
-            println "Compile error: ${e.message}"
+            println "Error: ${e.message}"
             success = false
         }
         println "Compile result: $success"
