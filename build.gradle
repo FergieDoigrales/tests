@@ -86,8 +86,6 @@ tasks.register('build_task') {
 }
 
 tasks.register('clean_task') {
-    group = 'build'
-    description = 'Deleting all temporary files and compiled classes'
     dependsOn 'clean'
     doLast {
         delete fileTree(dir: 'build', exclude: 'libs/')
@@ -104,50 +102,14 @@ tasks.register('xml') {
         fileTree(dir: '.', include: '**/*.xml').each { file ->
             try {
                 DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file)
-                println "${file} is valid."
+                println "${file} is OK."
             } catch (Exception e) {
-                println "${file} is NOT valid. Reason: ${e.message}"
+                println "${file} is not OK: ${e.message}"
             }
         }
     }
 }
 
-//tasks.register('native2ascii') {
-//    doLast {
-//        fileTree(dir: '.', include: '**/*.properties').each { file ->
-//            def outputFile = file("${buildDir}/native2ascii/${file.name}")
-//            outputFile.parentFile.mkdirs()
-//            exec {
-//                commandLine 'native2ascii', '-encoding', 'UTF8', file.path, outputFile.path
-//            }
-//        }
-//    }
-//}
-
-//tasks.register('history_task') {
-//    doLast {
-//        def result = exec {
-//            commandLine 'gradle', 'compile'
-//            ignoreExitValue true
-//        }
-//
-//        while (result.exitValue != 0) {
-//            exec {
-//                commandLine 'git', 'checkout', 'HEAD~1'
-//            }
-//            result = exec {
-//                commandLine 'gradle', 'compile'
-//                ignoreExitValue true
-//            }
-//        }
-//
-//        if (result.exitValue != 0) {
-//            exec {
-//                commandLine 'git', 'diff', 'HEAD~1', '>', 'diff.txt'
-//            }
-//        }
-//    }
-//}
 
 tasks.register ('history') {
     doLast {
@@ -218,7 +180,7 @@ tasks.register ('history') {
                     success = false
                 }
                 if (!success) {
-                    println "Failed to compile project, retrying..."
+                    println "Retruing: Failed compilation.."
                     commit = prevCommit
                     prevCommit += '^'
 
@@ -281,25 +243,33 @@ tasks.register('doc_task') {
 tasks.register('team') {
     doLast {
         def revisions = ['HEAD~1', 'HEAD~2']
+        def tempDir = file("${buildDir}/temp")
+
         revisions.each { revision ->
             exec {
+                commandLine 'git', 'clone', '.', tempDir
+            }
+
+            exec {
+                workingDir tempDir
                 commandLine 'git', 'checkout', revision
             }
 
             exec {
+                workingDir tempDir
                 commandLine 'cmd', '/c', 'gradlew', 'compileJava'
             }
-        }
 
-        exec {
-            commandLine 'git', 'checkout', 'master'
+            delete tempDir
         }
-
-        tasks.register('zipJars', org.gradle.api.tasks.bundling.Zip) {
-            from 'build/libs'
-            archiveFileName.set('archive.zip')
-            destinationDir = file('build') }
     }
+    dependsOn 'zipJars'
+}
+
+tasks.register('zipJars', org.gradle.api.tasks.bundling.Zip) {
+    from 'build/libs'
+    archiveFileName.set('archive.zip')
+    destinationDirectory.set(file('build'))
 }
 
 tasks.register('javadoc_task', Javadoc) {
@@ -419,7 +389,7 @@ tasks.register('alt', Jar) {
 
     fileTree(altDir).each { file ->
         file.text = file.text.replaceAll(
-                ' hit ', ' Althit ')
+                ' hit ', ' althit ')
     }
 
     archiveFileName.set("Lab3_ALT.jar")
