@@ -92,7 +92,7 @@ tasks.register('clean_task') {
     }
 }
 
-test {
+tasks.register('test_task', Test) {
     useJUnitPlatform()
     dependsOn 'build'
 }
@@ -176,7 +176,7 @@ tasks.register ('history') {
                     }
                     success = true
                 } catch (Exception e) {
-                    println "Compile error: ${e.message}"
+                    println "Error: ${e.message}"
                     success = false
                 }
                 if (!success) {
@@ -190,7 +190,7 @@ tasks.register ('history') {
 
 
                 else {
-                    println "Project compiled successfully, diff in ${diffFile}"
+                    println "Succes! Diff: ${diffFile}"
                     successfullyLoaded = true
                     def outputFile = new File("diff.txt")
                     outputFile.write(diffResult)
@@ -201,7 +201,7 @@ tasks.register ('history') {
 
         }
         else{
-            println "Project compiled successfully, no need to load previous revision"
+            println "Project compiled successfully"
 
         }
     }
